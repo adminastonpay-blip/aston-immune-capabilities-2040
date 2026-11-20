@@ -17,7 +17,8 @@ Provide a single fail-closed host adapter for the existing ASTON OS identity mod
 4. Construct an authority-verified identity with roles and clearance from the trusted credential binding, not caller-supplied role claims.
 5. Resolve the existing tenant-partitioned SafetyInterlock Durable Object and call its `POST /evaluate` endpoint.
 6. Accept only contract version `1` and status `allowed`. Denied, pending approval, timeout, malformed responses, and missing bindings stop capability evaluation.
-7. Invoke a capability evaluator only after both authority and SafetyInterlock allow. Evaluators must return `executable:false`.
+7. Re-read tenant lifecycle after SafetyInterlock and immediately before evaluation; reject if status or lifecycle version changed.
+8. Invoke a capability evaluator only after both authority and SafetyInterlock allow. Evaluators must return `executable:false`.
 
 ## ASTON interface mapping
 
