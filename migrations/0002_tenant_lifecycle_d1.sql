@@ -86,14 +86,7 @@ END;
 CREATE TRIGGER IF NOT EXISTS trg_aston_tenant_lifecycle_apply
 AFTER INSERT ON aston_tenant_lifecycle_idempotency
 BEGIN
-  INSERT INTO aston_tenants (tenant_id, status, version, created_at, updated_at)
-  SELECT NEW.tenant_id, 'pending', 1, NEW.occurred_at, NEW.occurred_at
-  WHERE NEW.operation = 'create';
-
-  UPDATE aston_tenants
-  SET status = NEW.target_status, version = version + 1, updated_at = NEW.occurred_at
-  WHERE tenant_id = NEW.tenant_id AND NEW.operation != 'create';
-
+  -- Capture the pre-transition state in the audit row before mutating the tenant.
   INSERT INTO aston_tenant_lifecycle_audit (
     audit_event_id, event_type, tenant_id, from_status, to_status,
     actor_principal_id, actor_scope, reason, correlation_id, occurred_at
@@ -105,6 +98,14 @@ BEGIN
     NEW.target_status, NEW.actor_principal_id, NEW.actor_scope, NEW.reason,
     NEW.correlation_id, NEW.occurred_at
   );
+
+  INSERT INTO aston_tenants (tenant_id, status, version, created_at, updated_at)
+  SELECT NEW.tenant_id, 'pending', 1, NEW.occurred_at, NEW.occurred_at
+  WHERE NEW.operation = 'create';
+
+  UPDATE aston_tenants
+  SET status = NEW.target_status, version = version + 1, updated_at = NEW.occurred_at
+  WHERE tenant_id = NEW.tenant_id AND NEW.operation != 'create';
 END;
 
 -- Append-only protections. Application code receives no update/delete API.
