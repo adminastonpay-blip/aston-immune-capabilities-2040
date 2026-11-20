@@ -95,3 +95,16 @@ A module remaining decision-only is not a production integration. Escrow must no
 **NO-GO for host `main` today.** The verified identity context, authoritative credential/tenant registry, real Preview D1 validation, and real route/SafetyInterlock integration are not yet demonstrated.
 
 The work is considered complete when W1–W5 pass and the final PR is ready for the user's explicit merge decision. No additional audit cycle is opened unless a concrete failed acceptance test reveals a defect.
+
+
+## Additional host findings from the integration branch inspection
+
+- The host repository currently uses date-prefixed D1 migration filenames (for example `20261117_tenant_scoped_links.sql` and `20261119_lineage_tenant_isolation.sql`). The proposed capability migrations use `0001_...` and `0002_...`; before host adoption, they must be reconciled with the host migration convention and the actual D1 migration history. Do not copy them into the host unchanged or apply them based on local ordering assumptions.
+- Legacy tenant fallbacks are not isolated to authentication. Search results show several routes and data access paths still use `identity.tenant || "default"`. The final route inventory must remove shared-tenant fallback from protected operations, not just enrich the JWT identity.
+- SafetyInterlock persists the supplied `Identity` JSON for pending approvals. Therefore verified issuer/subject proof must not be added casually to the public `Identity` object; keep trusted principal metadata in a separate internal context and explicitly bind approvals to that principal.
+- The host `main` branch currently reports branch protection disabled. This is a repository governance gap; enable required CI/review protection before final merge if repository permissions allow. No settings were changed.
+
+## Work started
+
+- Created host feature branch `feat/aston-production-integration-v1` from host `main` commit `be8c92c017fd2586098b33bed1b16fdeb9214729`. The branch is isolated; no host source files have been changed yet.
+- Created this bounded release-closure branch from the isolated capability integration work. No PR was opened and no merge was performed.
