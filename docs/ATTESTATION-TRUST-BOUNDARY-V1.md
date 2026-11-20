@@ -55,6 +55,23 @@ Any missing, unsupported, failed, skipped, or indeterminate mandatory check must
 - verifier result tampering, wrong policy version, and missing/indeterminate checks;
 - fail-closed behavior for every negative case.
 
+
+## Related ASTON Trust Infrastructure candidate inspected (read-only)
+
+Repository: `adminastonpay-blip/aston-trust-infrastructure`, default branch `main`.
+
+Inspected:
+- `src/hmac-passport.ts` at blob `18f5cec63ce4682bcb9a3c7f92279793b2889bb7`.
+- `src/poi/proof-of-intention.ts` at blob `2677c47ef1ed77bfc2cfd08e40192a4effd4bc35`.
+
+The HMAC Decision Passport candidate includes `tenant`, `actor`, `replay_key`, `issued_at`, `kid`, and an HMAC-SHA256 signature; it exports `verifyPassport`. This is a potentially reusable existing primitive, but it is **not yet an approved adapter** for Multi-Agent Defense:
+- It uses a shared secret, not the public-key signature profile represented by the Attestation SDK schema.
+- Its verifier proves MAC integrity under the supplied secret; it does not independently establish that the supplied tenant/actor is the authenticated caller or that the issuer is authorized for that tenant/agent.
+- The current source uses a simple derived `kid`; key lifecycle, rotation, revocation, trust-policy versioning, and cross-service secret distribution are not established by this file alone.
+- The Proof-of-Intention source contains tenant and nonce fields, but its package hash and status flow are not a substitute for an authenticated signature or issuer authorization.
+
+Therefore, treat this as a candidate to evaluate, not a verified dependency or production-ready trust root. Do not import or modify it in this capability until its owner contract, secret lifecycle, authenticated tenant source, and test evidence are established.
+
 ## Explicit non-goals
 
 - No changes to `agente-OS-15.5-hector-zapata` or any other runtime repository.
