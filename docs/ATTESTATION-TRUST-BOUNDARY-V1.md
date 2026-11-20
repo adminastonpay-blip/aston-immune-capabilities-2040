@@ -1,0 +1,67 @@
+# Attestation Trust Boundary v1 — Integration Decision Record
+
+**Status:** DESIGN ONLY  
+**Date:** 2026-11-20  
+**Scope:** Isolated capability repository; no runtime or infrastructure integration.
+
+## Decision
+
+Do not map an ASTON Agent Attestation document directly to `evidence.verified`. The published schema is descriptive; schema validity and a declared verification status are not proof that a signature, issuer identity, or tenant binding has been independently verified.
+
+Multi-Agent Defense may only receive a trusted verification result from a separately specified verifier adapter. Until that adapter contract and its trust policy exist, evidence remains untrusted and the decision engine must not be upgraded to treat it as verified.
+
+## Source facts inspected
+
+Repository: `adminastonpay-blip/aston-attestation-sdk`  
+Default branch: `main`  
+Release identified by its README: `v1.0.0`
+
+Inspected files:
+- `README.md` — explicitly states that schema validation does not generate or verify signatures, prove key ownership, validate timestamps or transparency logs, or guarantee runtime/model integrity.
+- `agent-attestation.schema.json` — requires `schema_version`, `attestation_id`, `created_at`, `agent`, `issuer`, `execution`, and `verification`. It describes optional `signatures`, digests, evidence, provenance, and transparency references.
+- `SECURITY.md` — states that a valid signature proves only that signed bytes verify under a public key; identity requires an independently established trust policy. A fully verified OpenTimestamps proof supports an existence-time bound, not authorship or truth.
+
+## Compatibility gaps
+
+1. **No tenant binding in schema v1.0.0.** The schema does not define `tenant_id` or an equivalent mandatory tenant-scoping claim. A tenant value must not be inferred from `agent.id`, `issuer.id`, or an untrusted extension.
+2. **No verifier implementation contract established by the inspected README/schema.** The `verification.status` field is a document claim unless a consumer independently performs and records verification.
+3. **No signature profile selected.** Signature algorithm, signed-byte canonicalization, signature encoding, key resolution, trust anchors, rotation, revocation, and algorithm allowlists must be specified before implementation.
+4. **No issuer-to-agent authorization rule.** Cryptographic validity alone does not establish that an issuer is authorized to attest for a particular agent or tenant.
+5. **No freshness/replay binding.** The consumer must define how attestation time, execution time, event ID, nonce, and replay protection relate to the Multi-Agent Defense observation window.
+6. **No trusted result provenance contract.** The host must authenticate the verifier result and bind it to the exact attestation digest, tenant, agent, policy version, and verification time.
+
+## Required adapter contract before implementation
+
+A future adapter result must be produced only after independent checks and must be cryptographically or transport-authenticated between the verifier and the capability. At minimum it must bind:
+
+- exact attestation digest and schema version;
+- tenant ID from an independently authenticated tenant context (not from an untrusted attestation claim);
+- agent ID and issuer ID, plus an explicit authorization decision linking issuer → agent → tenant;
+- signature algorithm/profile, key ID, trust-policy version, key status and revocation result;
+- signature verification result and all required digest checks;
+- timestamp/freshness and replay result;
+- verifier identity, verification timestamp, and a stable decision/reference ID.
+
+Any missing, unsupported, failed, skipped, or indeterminate mandatory check must yield an untrusted result. No adapter output may enable automatic containment; Multi-Agent Defense remains recommendation-only.
+
+## Required tests
+
+- malformed and unsupported schema versions;
+- missing signature, altered signed bytes, altered digest, unknown key, revoked key, wrong algorithm, and key-confusion attempts;
+- valid signature from an issuer not authorized for the agent;
+- valid issuer/agent pair presented under the wrong authenticated tenant;
+- tenant claim mismatch and attempts to override tenant context using extensions;
+- stale/future timestamps, replayed event/nonce, and mismatched attestation digest;
+- verifier result tampering, wrong policy version, and missing/indeterminate checks;
+- fail-closed behavior for every negative case.
+
+## Explicit non-goals
+
+- No changes to `agente-OS-15.5-hector-zapata` or any other runtime repository.
+- No Cloudflare Workers, D1, KV, R2, Vectorize, Durable Objects, secrets, bindings, or production configuration changes.
+- No real containment, agent shutdown, credential revocation, or cross-tenant action.
+- No claim of VALIDATED or PRODUCTION.
+
+## Exit criterion
+
+Implementation may begin only after the verifier profile, authenticated tenant source, issuer authorization model, key lifecycle/trust policy, and signed-payload canonicalization are specified and testable. Until then this record is the completed output of the contract-discovery step; it is not a production integration.
