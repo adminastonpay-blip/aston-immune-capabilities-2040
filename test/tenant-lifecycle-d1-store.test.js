@@ -9,6 +9,15 @@ const mutation = (overrides = {}) => ({
   occurredAt: 1000, correlationId: "trace-001", ...overrides
 });
 
+async function testFingerprint(m) {
+  const canonical = JSON.stringify([
+    m.operation, m.tenantId, m.targetStatus, m.reason,
+    m.actorPrincipalId, m.actorScope, m.correlationId ?? null
+  ]);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+
 function fakeD1({ changes = 1, row, error } = {}) {
   const calls = [];
   const db = {
@@ -52,12 +61,13 @@ test("submits exactly one atomic D1 batch with bound parameters and readback", a
 });
 
 test("returns replay for an existing matching idempotency record", async () => {
+  const m = mutation();
   const { db } = fakeD1({
     changes: 0,
-    row: { fingerprint: "0".repeat(64), audit_event_id: "audit-prior", tenant_id: "tenant-one" }
+    row: { fingerprint: await testFingerprint(m), audit_event_id: "audit-prior", tenant_id: "tenant-one" }
   });
   const store = createD1TenantLifecycleStore({ db, createId: () => "audit-new" });
-  const result = await store.applyTenantLifecycleCommand(mutation());
+  const result = await store.applyTenantLifecycleCommand(m);
   assert.deepEqual(result, { status: "replayed", auditEventId: "audit-prior" });
 });
 
