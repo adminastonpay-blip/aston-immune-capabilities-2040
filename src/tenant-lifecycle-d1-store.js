@@ -1,4 +1,5 @@
 const TENANT_ID = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+const LEGACY_TENANT_IDS = new Set(["default", "ops"]);
 const PRINCIPAL_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$/;
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const OPERATIONS = Object.freeze({
@@ -8,10 +9,15 @@ const OPERATIONS = Object.freeze({
   revoke: "revoked"
 });
 
+function validTenantId(value) {
+  return typeof value === "string" && TENANT_ID.test(value) &&
+    !LEGACY_TENANT_IDS.has(value) && !value.startsWith("unassigned-");
+}
+
 function validMutation(m) {
   return m && typeof m === "object" &&
     Object.hasOwn(OPERATIONS, m.operation) &&
-    typeof m.tenantId === "string" && TENANT_ID.test(m.tenantId) &&
+    validTenantId(m.tenantId) &&
     typeof m.reason === "string" && m.reason.length >= 8 && m.reason.length <= 500 &&
     typeof m.idempotencyKey === "string" && SAFE_TOKEN.test(m.idempotencyKey) &&
     typeof m.actorPrincipalId === "string" && PRINCIPAL_ID.test(m.actorPrincipalId) &&
@@ -24,7 +30,7 @@ function validMutation(m) {
 function safeRow(row) {
   return row && typeof row.fingerprint === "string" &&
     typeof row.audit_event_id === "string" && SAFE_TOKEN.test(row.audit_event_id) &&
-    typeof row.tenant_id === "string" && TENANT_ID.test(row.tenant_id);
+    validTenantId(row.tenant_id);
 }
 
 async function fingerprint(m) {
@@ -84,7 +90,6 @@ export function createD1TenantLifecycleStore({ db, createId } = {}) {
         WHERE actor_principal_id = ? AND idempotency_key = ?
       `).bind(m.actorPrincipalId, m.idempotencyKey);
 
-      // D1 batch is atomic: a trigger/constraint error rolls back all writes.
       const results = await db.batch([insert, readback]);
       if (!Array.isArray(results) || results.length !== 2) {
         throw new Error("invalid D1 batch response");
