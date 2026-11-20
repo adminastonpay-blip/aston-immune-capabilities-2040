@@ -70,7 +70,7 @@ export function evaluateEscrowEvent(escrow, event, { now = Date.now(), verifyEve
     status = "release_pending_approval";
     action = "propose_release";
     reason = "release_requires_approval";
-  } else if (event.type === "refund_authorized" && status === "funded") {
+  } else if (event.type === "refund_requested" && status === "funded") {
     status = "refund_pending_approval";
     action = "propose_refund";
     reason = "refund_requires_approval";
@@ -81,11 +81,76 @@ export function evaluateEscrowEvent(escrow, event, { now = Date.now(), verifyEve
   return {
     ok: true,
     reason,
-    escrow: { ...escrow, status, processedEventIds },
+    escrow: {
+      ...escrow,
+      status,
+      processedEventIds,
+      ...(action !== "none" ? {
+        pendingApproval: {
+          proposalId: "proposal-" + event.eventId,
+          decisionType: action === "propose_release" ? "release" : "refund",
+          sourceEventId: event.eventId
+        }
+      } : {})
+    },
     action,
     approvalRequired: action !== "none",
     executable: false,
     scope: { tenantId: escrow.tenantId, escrowId: escrow.escrowId },
     verifierId: proof.verifierId
+  };
+}
+
+/**
+ * Records an authenticated approval decision. The verifier is trusted host code
+ * and must prove authorization for this exact tenant, escrow, proposal and decision.
+ * Approval only authorizes a later settlement integration; this module never moves funds.
+ */
+export function evaluateEscrowApproval(escrow, approval, { now = Date.now(), verifyApproval } = {}) {
+  const reject = (reason) => ({ ok: false, reason, escrow, action: "none", executable: false });
+  if (!escrow || !validId(escrow.escrowId) || !validId(escrow.tenantId)) return reject("invalid_escrow");
+  if (!approval || !validId(approval.approvalId) || !validId(approval.proposalId) ||
+      !validId(approval.tenantId) || !validId(approval.escrowId) ||
+      !validId(approval.approverId) || !["approved", "rejected"].includes(approval.decision)) {
+    return reject("invalid_approval");
+  }
+  if (approval.tenantId !== escrow.tenantId || approval.escrowId !== escrow.escrowId) return reject("scope_mismatch");
+  const pending = escrow.pendingApproval;
+  if (!pending || approval.proposalId !== pending.proposalId) return reject("proposal_mismatch");
+  if (escrow.status !== "release_pending_approval" && escrow.status !== "refund_pending_approval") {
+    return reject("approval_not_pending");
+  }
+  if (!Number.isFinite(now) || Date.parse(escrow.expiresAt) <= now) return reject("escrow_expired");
+  if (typeof verifyApproval !== "function") return reject("trusted_approval_verifier_required");
+
+  let proof;
+  try { proof = verifyApproval(approval); } catch { return reject("approval_verification_failed"); }
+  if (!proof || proof.verified !== true ||
+      proof.approvalId !== approval.approvalId ||
+      proof.proposalId !== pending.proposalId ||
+      proof.tenantId !== escrow.tenantId ||
+      proof.escrowId !== escrow.escrowId ||
+      proof.approverId !== approval.approverId ||
+      proof.decision !== approval.decision ||
+      !validId(proof.verifierId)) return reject("approval_verification_failed");
+
+  const status = approval.decision === "approved"
+    ? (pending.decisionType === "release" ? "approved_for_release" : "approved_for_refund")
+    : (pending.decisionType === "release" ? "release_rejected" : "refund_rejected");
+
+  return {
+    ok: true,
+    reason: approval.decision === "approved" ? "approval_recorded" : "approval_rejected",
+    escrow: { ...escrow, status, pendingApproval: null, approvalRecord: {
+      approvalId: approval.approvalId,
+      proposalId: pending.proposalId,
+      approverId: approval.approverId,
+      decision: approval.decision,
+      verifierId: proof.verifierId
+    } },
+    action: approval.decision === "approved" ? "authorize_external_settlement" : "none",
+    approvalRequired: false,
+    executable: false,
+    scope: { tenantId: escrow.tenantId, escrowId: escrow.escrowId }
   };
 }
