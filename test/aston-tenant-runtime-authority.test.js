@@ -205,3 +205,19 @@ test("SafetyInterlock gate denies absent authority, missing DO and DO failures",
   assert.equal((await gate.evaluate({ hostContext: { ...authorizedHostContext(), authorityVerified: false }, action: { tool: "write" } })).ok, false);
   assert.equal((await gate.evaluate({ hostContext: authorizedHostContext(), action: { tool: "write" } })).ok, false);
 });
+
+test("SafetyInterlock timeout is fail-closed", async () => {
+  const gate = createAstonSafetyInterlockGate({
+    timeoutMs: 100,
+    SAFETY: {
+      idFromName: () => "id",
+      get: () => ({ fetch: () => new Promise(() => {}) })
+    }
+  });
+  const result = await gate.evaluate({
+    hostContext: authorizedHostContext(),
+    action: { tool: "agent.action" }
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "SAFETY_INTERLOCK_TIMEOUT");
+});
