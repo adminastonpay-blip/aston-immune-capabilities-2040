@@ -49,11 +49,21 @@ test("verified funding then release condition proposes approval, never executes"
   const created = createEscrow(input).escrow;
   const funded = evaluateEscrowEvent(created, event("e1", "funds_secured"), { now: 0, verifyEvent: verifier });
   assert.equal(funded.escrow.status, "funded");
-  const release = evaluateEscrowEvent(funded.escrow, event("e2", "release_condition_met"), { now: 0, verifyEvent: verifier });
+  const release = evaluateEscrowEvent(funded.escrow, event("e2", "release_condition_met", { conditionType: "delivery_confirmed", conditionReference: "delivery-001" }), { now: 0, verifyEvent: verifier });
   assert.equal(release.action, "propose_release");
   assert.equal(release.escrow.status, "release_pending_approval");
   assert.equal(release.approvalRequired, true);
   assert.equal(release.executable, false);
+});
+
+test("release condition must match the escrow's configured condition", () => {
+  const created = createEscrow(input).escrow;
+  const funded = evaluateEscrowEvent(created, event("e1", "funds_secured"), { now: 0, verifyEvent: verifier });
+  const result = evaluateEscrowEvent(funded.escrow, event("e2", "release_condition_met", {
+    conditionType: "delivery_confirmed", conditionReference: "other-delivery"
+  }), { now: 0, verifyEvent: verifier });
+  assert.equal(result.reason, "release_condition_mismatch");
+  assert.equal(result.escrow.status, "funded");
 });
 
 test("duplicate events are idempotent", () => {
