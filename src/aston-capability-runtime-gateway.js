@@ -22,7 +22,12 @@ export function createAstonCapabilityRuntimeGateway({
       if (!safetyGate || typeof safetyGate.evaluate !== "function") {
         return { ok: false, decision: "deny", reason: "SAFETY_INTERLOCK_GATE_REQUIRED", executable: false };
       }
-      const safety = await safetyGate.evaluate({ hostContext: authority, action });
+      let safety;
+      try {
+        safety = await safetyGate.evaluate({ hostContext: authority, action });
+      } catch {
+        return { ok: false, decision: "review", reason: "SAFETY_INTERLOCK_EVALUATION_FAILED", executable: false };
+      }
       if (!safety || safety.ok !== true || safety.status !== "allowed") {
         return {
           ok: false,
