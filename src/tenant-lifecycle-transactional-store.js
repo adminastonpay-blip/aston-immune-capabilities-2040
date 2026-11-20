@@ -78,6 +78,8 @@ export function createTransactionalTenantLifecycleStore({ transaction } = {}) {
         const current = await tx.getTenant(mutation.tenantId);
         const transition = TRANSITIONS[mutation.operation];
         const currentStatus = current ? current.status : null;
+        if (current && (!STATUSES.has(current.status) || !Number.isSafeInteger(current.version) ||
+            current.version < 1)) throw new Error("corrupt tenant record");
         if (!transition.from.includes(currentStatus)) {
           return { status: "transition_rejected" };
         }
@@ -91,8 +93,6 @@ export function createTransactionalTenantLifecycleStore({ transaction } = {}) {
             updatedAt: mutation.occurredAt
           });
         } else {
-          if (!STATUSES.has(current.status) || !Number.isSafeInteger(current.version) ||
-              current.version < 1) throw new Error("corrupt tenant record");
           const updated = await tx.updateTenant(mutation.tenantId, current.version, {
             status: transition.to,
             version: current.version + 1,
