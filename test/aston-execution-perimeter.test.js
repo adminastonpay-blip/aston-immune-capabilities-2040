@@ -87,7 +87,7 @@ test("plan stops immediately when any action is denied or pending review", async
   let policyCalls = 0;
   const perimeter = createAstonExecutionPerimeter({
     gateway: {
-      async evaluate({ action }) {
+      async evaluate({ action, evaluateCapability }) {
         if (action.context.stepIndex === 1) {
           return { ok: false, decision: "review", reason: "approval_pending", executable: false };
         }
