@@ -65,3 +65,19 @@ Unit tests prove the isolated wrapper's sequencing and fail-closed behavior only
 ## Safety boundary
 
 No ASTON OS 15.5 source file, main branch, Cloudflare Worker, D1 database, binding, secret, Durable Object, Queue, Vectorize index, or production deployment was changed. No route is described as fully protected or production-ready by this isolated deliverable.
+
+
+## Integration harness close-out — v1.1
+
+The isolated integration harness now composes the real tenant-authority gateway and execution perimeter with instrumented test doubles. It verifies:
+
+- SafetyInterlock exceptions become a fail-closed `review` result; they do not escape as unhandled errors.
+- Denied and pending-approval responses do not invoke the capability evaluator or downstream host adapters.
+- A tenant lifecycle version/status change after SafetyInterlock blocks capability evaluation.
+- Action-specific policy denial blocks the host adapter.
+- Multi-action plans re-run the full gateway for each step and stop at the first blocked step.
+- A capability result claiming `executable:true` is rejected.
+
+The harness counts simulated D1 writes, Queue sends, Mission dispatches, capability evaluations, and SafetyInterlock calls. These are test doubles only: this is not a live D1, Durable Object, Queue, R2, Vectorize, Workflow, or production test.
+
+A successful CI run establishes **IMPLEMENTED + TESTED in the isolated repository**. It does not establish host route integration or production readiness. The host must still enforce the same gate before each real side effect.
