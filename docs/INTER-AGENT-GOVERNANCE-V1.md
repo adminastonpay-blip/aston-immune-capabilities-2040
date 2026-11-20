@@ -29,7 +29,7 @@ Provide a deterministic policy boundary for agent-to-agent requests. The module 
 
 ## Trust boundary
 
-`verifyRequest` is privileged host composition code. It must not originate from request payloads, agents or queue messages. It must authenticate the request and bind request ID, tenant, source/target agents, action, resource, grant ID and audience. This library checks the returned bindings but does not prove the verifier itself is trustworthy.
+`verifyRequest` is privileged host composition code. It must not originate from request payloads, agents or queue messages. It must authenticate the request and bind request ID, tenant, source/target agents, action, resource, requested scopes, request times, grant ID, issuer/subject, delegated scopes, grant expiry/depth and audience. This library checks the returned bindings but does not prove the verifier itself is trustworthy.
 
 ## Policy boundary
 
