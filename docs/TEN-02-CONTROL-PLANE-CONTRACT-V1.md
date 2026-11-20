@@ -34,7 +34,7 @@ Every command requires:
 - Authorization for the exact operation and target tenant.
 - Correlation ID where available.
 
-Tenant-scoped administrators cannot administer a different tenant, and cannot administer their own tenant through this tenant-scoped path. A separately authorized platform-scoped administrator may administer tenants globally. The host authorization provider remains responsible for authenticating and governing platform administrators.
+A platform-scoped administrator may administer tenants globally only when the host explicitly grants the operation capability. A delegated administrator may administer only the exact target tenant named in the host authorization result, and only when that target differs from the administrator's own home tenant. Tenant-scoped self-administration is forbidden. The host authorization provider remains responsible for authenticating platform administrators and issuing narrow, auditable cross-tenant delegations.
 
 ## Atomic store boundary
 
@@ -59,7 +59,7 @@ Audit records should include event ID, tenant ID, previous and new state, operat
 
 ## Laboratory implementation
 
-The module implements the authorization/validation boundary and calls an injected atomic store interface. Tests use a deterministic fake store to exercise authorized lifecycle operations, capability/identity checks, tenant scope, self-tenant restriction, missing/failed authorization, idempotent replay, idempotency conflict, transition rejection, persistence failures, malformed responses, audit reference requirements and non-executable outcomes.
+The module implements the authorization/validation boundary and calls an injected atomic store interface. Tests use a deterministic fake store to exercise authorized lifecycle operations, capability/identity checks, delegated target scope, self-tenant restriction, missing/failed authorization, idempotent replay, idempotency conflict, transition rejection, persistence failures, malformed responses, audit reference requirements and non-executable outcomes.
 
 The fake store is test-only. It does not provide durable idempotency, database transactions, append-only audit guarantees, concurrency safety or production lifecycle enforcement.
 
