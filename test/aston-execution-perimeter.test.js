@@ -94,7 +94,7 @@ test("plan stops immediately when any action is denied or pending review", async
         return {
           ok: true, decision: "allow", reason: "allowed",
           tenantId: "tenant-a", safetyStatus: "allowed", executable: false,
-          capability: await Promise.resolve({ executable: false })
+          capability: await evaluateCapability({ hostContext: { tenantId: "tenant-a" }, action })
         };
       }
     }
