@@ -1,6 +1,6 @@
 # Agentic Escrow v1 — Isolated Capability
 
-Status: IMPLEMENTED (initial decision core) / TESTING IN PROGRESS
+Status: IMPLEMENTED (decision core + approval contract) / TESTING IN PROGRESS
 Branch: `feat/agentic-escrow-v1`
 
 ## Purpose
@@ -13,6 +13,9 @@ Provide a deterministic, tenant-scoped decision core for conditional agent-to-ag
 - Exact tenant and escrow binding for incoming events.
 - A trusted-host verifier callback; caller-supplied `verified` flags are ignored.
 - Minimal state transitions: `created → funded → release_pending_approval` or `funded → refund_pending_approval`.
+- Exact release-condition type/reference matching before proposing release.
+- Verified approval/rejection decisions bound to the exact tenant, escrow, proposal, approver and decision.
+- Approved decisions become `approved_for_release` / `approved_for_refund` and only authorize a separate settlement integration; they do not execute settlement.
 - Duplicate event idempotency within the returned escrow state.
 - Explicit `executable: false` for every decision.
 
@@ -39,9 +42,12 @@ A release or refund event only creates a proposal and moves the local decision r
 2. Events with mismatched tenant/escrow scope are rejected.
 3. Missing, throwing or mismatched verifier results fail closed.
 4. Release cannot be proposed before funding is verified.
-5. Release/refund proposals are non-executable and approval-required.
-6. Duplicate events do not repeat transitions.
-7. Expired escrows reject new events.
-8. Automated tests pass on the isolated branch.
+5. Release proposals match the configured release condition exactly.
+6. Release/refund proposals are non-executable and approval-required.
+7. Approval/rejection requires a trusted verifier bound to the exact proposal and approver.
+8. Rejected approvals never authorize settlement; approved decisions remain non-executable.
+9. Duplicate events do not repeat transitions.
+10. Expired escrows reject new events and approvals.
+11. Automated tests pass on the isolated branch.
 
 No integration into `agente-OS-15.5-hector-zapata`, no Cloudflare changes and no production activation are included.
