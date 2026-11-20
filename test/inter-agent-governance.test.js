@@ -21,8 +21,16 @@ const verifier = (value) => ({
   verified: true, requestId: value.requestId, tenantId: value.tenantId,
   sourceAgentId: value.sourceAgentId, targetAgentId: value.targetAgentId,
   action: value.action, resource: value.resource,
-  grantId: value.delegation.grantId, audience: value.audience,
-  verifierId: "trusted-host-verifier"
+  requestedScopes: JSON.stringify(value.requestedScopes),
+  issuedAt: value.issuedAt, expiresAt: value.expiresAt,
+  grantId: value.delegation.grantId,
+  issuerAgentId: value.delegation.issuerAgentId,
+  subjectAgentId: value.delegation.subjectAgentId,
+  delegationScopes: JSON.stringify(value.delegation.scopes),
+  delegationExpiresAt: value.delegation.expiresAt,
+  delegationDepth: value.delegation.depth,
+  delegationMaxDepth: value.delegation.maxDepth,
+  audience: value.audience, verifierId: "trusted-host-verifier"
 });
 const evaluate = (value = request, options = {}) => evaluateInterAgentRequest(value, {
   now, verifyRequest: verifier, policy: { allowedActions: ["read_inventory", "write_inventory"], ...options }
@@ -74,6 +82,14 @@ test("verifier must bind exact action and resource", () => {
   const result = evaluateInterAgentRequest(request, {
     now, verifyRequest: (value) => ({ ...verifier(value), action: "delete_inventory" })
   });
+  assert.equal(result.reason, "request_verification_failed");
+});
+
+test("verifier must bind the complete delegation scope and lifetime", () => {
+  const result = evaluateInterAgentRequest(request, {
+    now, verifyRequest: (value) => ({ ...verifier(value), delegationScopes: JSON.stringify(["inventory:read", "admin:*"]) })
+  });
+  assert.equal(result.decision, "review");
   assert.equal(result.reason, "request_verification_failed");
 });
 
