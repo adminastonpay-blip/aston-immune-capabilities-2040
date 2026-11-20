@@ -124,3 +124,14 @@ test("schema declares atomic triggers and immutable audit/idempotency records", 
   assert.match(sql, /RAISE\(ABORT, 'TEN02_IDEMPOTENCY_IMMUTABLE'\)/);
   assert.match(sql, /PRIMARY KEY \(actor_principal_id, idempotency_key\)/);
 });
+
+test("rejects legacy and synthetic tenant identifiers at the persistence boundary", async () => {
+  const { db } = fakeD1();
+  const store = createD1TenantLifecycleStore({ db, createId: () => "audit-001" });
+  for (const tenantId of ["default", "ops", "unassigned-abc"]) {
+    await assert.rejects(
+      store.applyTenantLifecycleCommand(mutation({ tenantId })),
+      /invalid lifecycle mutation/
+    );
+  }
+});
