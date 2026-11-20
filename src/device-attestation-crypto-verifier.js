@@ -143,6 +143,9 @@ export async function verifyDeviceAttestation(envelope, {
   if (keyRecord.status !== "active" || keyRecord.revoked === true) {
     return result("deny", "trusted_key_not_active");
   }
+  if (keyRecord.deviceStatus !== "active") {
+    return result("deny", "device_not_active");
+  }
 
   const keyNotBefore = Date.parse(keyRecord.notBefore);
   const keyNotAfter = Date.parse(keyRecord.notAfter);
