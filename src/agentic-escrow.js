@@ -51,7 +51,10 @@ export function evaluateEscrowEvent(escrow, event, { now = Date.now(), verifyEve
   let proof;
   try { proof = verifyEvent(event); } catch { return reject("verification_failed"); }
   if (!proof || proof.verified !== true || proof.eventId !== event.eventId ||
+      proof.eventType !== event.type ||
       proof.escrowId !== escrow.escrowId || proof.tenantId !== escrow.tenantId ||
+      proof.conditionType !== (event.conditionType ?? null) ||
+      proof.conditionReference !== (event.conditionReference ?? null) ||
       !validId(proof.verifierId)) return reject("verification_failed");
 
   const processedEventIds = [...(escrow.processedEventIds || []), event.eventId];
