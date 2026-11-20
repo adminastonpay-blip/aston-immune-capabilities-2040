@@ -18,5 +18,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run tests
+      - name: Run Node tests
         run: npm test
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Execute D1 migration against SQLite
+        run: python -m unittest discover -s test/sqlite -p "test_*.py" -v
