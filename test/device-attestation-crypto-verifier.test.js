@@ -69,6 +69,12 @@ test("rejects unknown, mismatched, revoked and expired keys", async () => {
   assert.equal((await verifyDeviceAttestation(envelope, options({ ...keyRecord, notAfter: "2026-11-01T00:00:00.000Z" }))).reason, "trusted_key_outside_validity");
 });
 
+test("rejects a key record for an inactive device", async () => {
+  const { envelope, keyRecord } = await fixture();
+  const result = await verifyDeviceAttestation(envelope, options({ ...keyRecord, deviceStatus: "suspended" }));
+  assert.equal(result.reason, "device_not_active");
+});
+
 test("fails closed on malformed, stale and expired attestations", async () => {
   const { envelope, keyRecord } = await fixture();
   assert.equal((await verifyDeviceAttestation({ ...envelope, claims: ["duplicate", "duplicate"] }, options(keyRecord))).reason, "invalid_attestation_claims");
