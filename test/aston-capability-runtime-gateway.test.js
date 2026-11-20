@@ -68,7 +68,7 @@ test("invokes a decision-only capability only after active tenant and SafetyInte
       return { ok: true, decision: "allow", reason: "policy passed", executable: false };
     }
   });
-  assert.deepEqual(order, ["binding", "tenant", "safety", "capability"]);
+  assert.deepEqual(order, ["binding", "tenant", "safety", "tenant", "capability"]);
   assert.equal(result.ok, true);
   assert.equal(result.safetyStatus, "allowed");
   assert.equal(result.executable, false);
@@ -85,4 +85,26 @@ test("rejects a capability evaluator that claims execution capability", async ()
   });
   assert.equal(result.ok, false);
   assert.equal(result.reason, "CAPABILITY_RESULT_NOT_DECISION_ONLY");
+});
+
+test("does not evaluate a capability when tenant lifecycle changes after SafetyInterlock", async () => {
+  let reads = 0, invoked = false;
+  const gateway = createAstonCapabilityRuntimeGateway({
+    resolvePrincipalBinding, 
+    loadTenantLifecycle: async () => {
+      reads++;
+      return reads === 1
+        ? { tenantId: "tenant-a", status: "active", lifecycleVersion: 2 }
+        : { tenantId: "tenant-a", status: "suspended", lifecycleVersion: 3 };
+    },
+    safetyGate: { evaluate: async () => ({ ok: true, status: "allowed" }) }
+  });
+  const result = await gateway.evaluate({
+    identity, action,
+    evaluateCapability: async () => { invoked = true; return { executable: false }; }
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "TENANT_LIFECYCLE_CHANGED_DURING_GATE");
+  assert.equal(invoked, false);
+  assert.equal(reads, 2);
 });
