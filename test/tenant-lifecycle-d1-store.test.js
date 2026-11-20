@@ -48,9 +48,12 @@ test("requires a D1 binding and trusted audit ID factory", () => {
 });
 
 test("submits exactly one atomic D1 batch with bound parameters and readback", async () => {
-  const { db, calls } = fakeD1();
+  const m = mutation();
+  const { db, calls } = fakeD1({
+    row: { fingerprint: await testFingerprint(m), audit_event_id: "audit-001", tenant_id: "tenant-one" }
+  });
   const store = createD1TenantLifecycleStore({ db, createId: () => "audit-001" });
-  const result = await store.applyTenantLifecycleCommand(mutation());
+  const result = await store.applyTenantLifecycleCommand(m);
   assert.equal(result.status, "applied");
   assert.equal(result.auditEventId, "audit-001");
   assert.equal(calls.length, 1);
