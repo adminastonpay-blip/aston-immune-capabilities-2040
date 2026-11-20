@@ -6,7 +6,7 @@ import { canonicalizeAttestationPayload } from "../src/device-attestation-crypto
 const NOW = Date.parse("2026-11-20T12:00:00.000Z");
 const hostContext = Object.freeze({ tenantId: "tenant-1", audience: "aston-edge-v1", principalId: "host-service-1" });
 
-function fakeD1({ fail = false } = {}) {
+function fakeD1({ fail = false, failOnChallenge = false } = {}) {
   const keys = new Map();
   const challenges = new Set();
   const keyId = (t, i, k) => [t, i, k].join("|");
@@ -19,7 +19,7 @@ function fakeD1({ fail = false } = {}) {
           values: [],
           bind(...values) { this.values = values; return this; },
           async run() {
-            if (fail) throw new Error("simulated_d1_failure");
+            if (fail || (failOnChallenge && sql.includes("aston_device_trust_challenges"))) throw new Error("simulated_d1_failure");
             const v = this.values;
             if (sql.includes("INSERT OR IGNORE INTO aston_device_trust_keys")) {
               const id = keyId(v[0], v[1], v[2]);
@@ -55,8 +55,8 @@ function b64url(bytes) {
   return Buffer.from(bytes).toString("base64url");
 }
 
-async function fixture({ fail = false, authorize = async () => true } = {}) {
-  const { db, keys, challenges } = fakeD1({ fail });
+async function fixture({ fail = false, failOnChallenge = false, authorize = async () => true } = {}) {
+  const { db, keys, challenges } = fakeD1({ fail, failOnChallenge });
   const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
   const publicKey = await crypto.subtle.exportKey("jwk", pair.publicKey);
   const key = {
@@ -138,7 +138,7 @@ test("fails closed when host authorization denies challenge consumption", async 
 });
 
 test("fails closed on D1 storage errors after cryptographic verification", async () => {
-  const { orchestrator, payload } = await fixture({ fail:true });
+  const { orchestrator, payload } = await fixture({ failOnChallenge:true });
   const result = await orchestrator.verifyAndConsume(payload);
   assert.equal(result.ok, false);
   assert.equal(result.decision, "review");
