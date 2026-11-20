@@ -89,7 +89,16 @@ export function evaluateInterAgentRequest(request, {
       proof.requestId !== requestId || proof.tenantId !== tenantId ||
       proof.sourceAgentId !== sourceAgentId || proof.targetAgentId !== targetAgentId ||
       proof.action !== action || proof.resource !== resource ||
-      proof.grantId !== delegation.grantId || proof.audience !== audience ||
+      proof.requestedScopes !== JSON.stringify(requestedScopes) ||
+      proof.issuedAt !== issuedAt || proof.expiresAt !== expiresAt ||
+      proof.grantId !== delegation.grantId ||
+      proof.issuerAgentId !== delegation.issuerAgentId ||
+      proof.subjectAgentId !== delegation.subjectAgentId ||
+      proof.delegationScopes !== JSON.stringify(delegation.scopes) ||
+      proof.delegationExpiresAt !== delegation.expiresAt ||
+      proof.delegationDepth !== delegation.depth ||
+      proof.delegationMaxDepth !== delegation.maxDepth ||
+      proof.audience !== audience ||
       !validId(proof.verifierId)) {
     return result("review", "request_verification_failed");
   }
