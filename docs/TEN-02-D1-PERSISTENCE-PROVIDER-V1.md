@@ -1,6 +1,6 @@
 # TEN-02 D1 Persistence Provider v1
 
-Status: IMPLEMENTED + UNIT TESTED (isolated fake D1 binding). Not validated against a live Cloudflare D1 database. Migration is proposed and unapplied.
+Status: IMPLEMENTED + TESTED against a fake D1 binding and executed SQLite migration harness (9 integration tests). Not validated against a live Cloudflare D1 database. Migration is proposed and unapplied.
 
 ## Design
 
@@ -45,7 +45,7 @@ The trigger appends one event in the same atomic batch. Audit and idempotency ro
 ## Explicit limits
 
 - No migration has been applied to any D1 database.
-- Tests use a fake D1 binding and inspect SQL/batch behavior; they do not execute SQLite triggers or prove Cloudflare runtime behavior.
-- No live concurrency, rollback, latency, or durability test has been performed.
+- Node tests use a fake D1 binding to inspect SQL/batch behavior. A separate Python 3.12 integration suite executes migration 0002 against SQLite 3 and validates the actual triggers, lifecycle, audit pre-state, replay, idempotency conflict, immutable records, invalid-transition abort, canonical tenant constraints, migration repeatability, and rollback after a trigger/constraint failure (9 tests).
+- SQLite execution validates SQL syntax and trigger semantics, but it is not a live Cloudflare D1 binding test. D1-specific batch concurrency, platform rollback guarantees, latency, and durability remain unverified.
 - No Cloudflare binding, Worker, secret, production database, ASTON OS 15.5 repository, or main branch was changed.
 - This module returns persistence outcomes only; it does not authorize administrators or execute tenant workloads.

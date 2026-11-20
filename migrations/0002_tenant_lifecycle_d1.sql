@@ -9,7 +9,14 @@ CREATE TABLE IF NOT EXISTS aston_tenants (
   version INTEGER NOT NULL CHECK (version >= 1),
   created_at INTEGER NOT NULL CHECK (created_at >= 0),
   updated_at INTEGER NOT NULL CHECK (updated_at >= 0),
-  CHECK (length(tenant_id) BETWEEN 1 AND 64)
+  CHECK (
+    length(tenant_id) BETWEEN 1 AND 64
+    AND tenant_id NOT IN ('default','ops')
+    AND tenant_id NOT LIKE 'unassigned-%'
+    AND tenant_id NOT GLOB '*[^a-z0-9-]*'
+    AND substr(tenant_id, 1, 1) GLOB '[a-z0-9]'
+    AND substr(tenant_id, -1, 1) GLOB '[a-z0-9]'
+  )
 );
 
 CREATE TABLE IF NOT EXISTS aston_tenant_lifecycle_idempotency (
@@ -27,7 +34,14 @@ CREATE TABLE IF NOT EXISTS aston_tenant_lifecycle_idempotency (
   PRIMARY KEY (actor_principal_id, idempotency_key),
   CHECK (length(actor_principal_id) BETWEEN 1 AND 200),
   CHECK (length(idempotency_key) BETWEEN 1 AND 128),
-  CHECK (length(tenant_id) BETWEEN 1 AND 64)
+  CHECK (
+    length(tenant_id) BETWEEN 1 AND 64
+    AND tenant_id NOT IN ('default','ops')
+    AND tenant_id NOT LIKE 'unassigned-%'
+    AND tenant_id NOT GLOB '*[^a-z0-9-]*'
+    AND substr(tenant_id, 1, 1) GLOB '[a-z0-9]'
+    AND substr(tenant_id, -1, 1) GLOB '[a-z0-9]'
+  )
 );
 
 CREATE TABLE IF NOT EXISTS aston_tenant_lifecycle_audit (
@@ -46,8 +60,6 @@ CREATE TABLE IF NOT EXISTS aston_tenant_lifecycle_audit (
 CREATE INDEX IF NOT EXISTS idx_aston_tenant_lifecycle_audit_tenant_time
   ON aston_tenant_lifecycle_audit (tenant_id, occurred_at);
 
--- Validate state before the idempotency INSERT can commit. For an existing
--- actor/key, the insert is a replay candidate and must not revalidate transition.
 CREATE TRIGGER IF NOT EXISTS trg_aston_tenant_lifecycle_validate
 BEFORE INSERT ON aston_tenant_lifecycle_idempotency
 WHEN NOT EXISTS (
@@ -86,7 +98,6 @@ END;
 CREATE TRIGGER IF NOT EXISTS trg_aston_tenant_lifecycle_apply
 AFTER INSERT ON aston_tenant_lifecycle_idempotency
 BEGIN
-  -- Capture the pre-transition state in the audit row before mutating the tenant.
   INSERT INTO aston_tenant_lifecycle_audit (
     audit_event_id, event_type, tenant_id, from_status, to_status,
     actor_principal_id, actor_scope, reason, correlation_id, occurred_at
@@ -108,7 +119,6 @@ BEGIN
   WHERE tenant_id = NEW.tenant_id AND NEW.operation != 'create';
 END;
 
--- Append-only protections. Application code receives no update/delete API.
 CREATE TRIGGER IF NOT EXISTS trg_aston_tenant_lifecycle_audit_no_update
 BEFORE UPDATE ON aston_tenant_lifecycle_audit
 BEGIN SELECT RAISE(ABORT, 'TEN02_AUDIT_IMMUTABLE'); END;
