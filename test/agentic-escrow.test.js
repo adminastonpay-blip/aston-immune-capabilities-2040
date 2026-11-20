@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createEscrow, evaluateEscrowEvent } from "../src/agentic-escrow.js";
+import { createEscrow, evaluateEscrowEvent, evaluateEscrowApproval } from "../src/agentic-escrow.js";
 
 const input = {
   escrowId: "escrow-001", tenantId: "tenant-a",
@@ -84,4 +84,82 @@ test("verifier exception fails closed", () => {
   const escrow = createEscrow(input).escrow;
   const result = evaluateEscrowEvent(escrow, event("e1", "funds_secured"), { now: 0, verifyEvent: () => { throw new Error("no"); } });
   assert.equal(result.reason, "verification_failed");
+});
+
+const approvalVerifier = (approval) => ({
+  verified: true,
+  approvalId: approval.approvalId,
+  proposalId: approval.proposalId,
+  tenantId: approval.tenantId,
+  escrowId: approval.escrowId,
+  approverId: approval.approverId,
+  decision: approval.decision,
+  verifierId: "host-approval-verifier"
+});
+function pendingRelease() {
+  const created = createEscrow(input).escrow;
+  const funded = evaluateEscrowEvent(created, event("e1", "funds_secured"), { now: 0, verifyEvent: verifier });
+  return evaluateEscrowEvent(funded.escrow, event("e2", "release_condition_met", {
+    conditionType: "delivery_confirmed", conditionReference: "delivery-001"
+  }), { now: 0, verifyEvent: verifier }).escrow;
+}
+
+test("approval requires trusted host verifier", () => {
+  const escrow = pendingRelease();
+  const approval = { approvalId: "a1", proposalId: escrow.pendingApproval.proposalId,
+    tenantId: escrow.tenantId, escrowId: escrow.escrowId, approverId: "human-1", decision: "approved" };
+  assert.equal(evaluateEscrowApproval(escrow, approval, { now: 0 }).reason, "trusted_approval_verifier_required");
+});
+
+test("verified human approval authorizes external settlement but never executes it", () => {
+  const escrow = pendingRelease();
+  const approval = { approvalId: "a1", proposalId: escrow.pendingApproval.proposalId,
+    tenantId: escrow.tenantId, escrowId: escrow.escrowId, approverId: "human-1", decision: "approved" };
+  const result = evaluateEscrowApproval(escrow, approval, { now: 0, verifyApproval: approvalVerifier });
+  assert.equal(result.escrow.status, "approved_for_release");
+  assert.equal(result.action, "authorize_external_settlement");
+  assert.equal(result.executable, false);
+  assert.equal(result.escrow.pendingApproval, null);
+});
+
+test("approval verifier must bind exact approver and decision", () => {
+  const escrow = pendingRelease();
+  const approval = { approvalId: "a1", proposalId: escrow.pendingApproval.proposalId,
+    tenantId: escrow.tenantId, escrowId: escrow.escrowId, approverId: "human-1", decision: "approved" };
+  const result = evaluateEscrowApproval(escrow, approval, { now: 0,
+    verifyApproval: () => ({ ...approvalVerifier(approval), approverId: "attacker" }) });
+  assert.equal(result.reason, "approval_verification_failed");
+});
+
+test("approval from another tenant is rejected", () => {
+  const escrow = pendingRelease();
+  const approval = { approvalId: "a1", proposalId: escrow.pendingApproval.proposalId,
+    tenantId: "tenant-other", escrowId: escrow.escrowId, approverId: "human-1", decision: "approved" };
+  assert.equal(evaluateEscrowApproval(escrow, approval, { now: 0, verifyApproval: approvalVerifier }).reason, "scope_mismatch");
+});
+
+test("approval for another proposal is rejected", () => {
+  const escrow = pendingRelease();
+  const approval = { approvalId: "a1", proposalId: "proposal-other",
+    tenantId: escrow.tenantId, escrowId: escrow.escrowId, approverId: "human-1", decision: "approved" };
+  assert.equal(evaluateEscrowApproval(escrow, approval, { now: 0, verifyApproval: approvalVerifier }).reason, "proposal_mismatch");
+});
+
+test("rejected approval closes proposal without authorizing settlement", () => {
+  const escrow = pendingRelease();
+  const approval = { approvalId: "a1", proposalId: escrow.pendingApproval.proposalId,
+    tenantId: escrow.tenantId, escrowId: escrow.escrowId, approverId: "human-1", decision: "rejected" };
+  const result = evaluateEscrowApproval(escrow, approval, { now: 0, verifyApproval: approvalVerifier });
+  assert.equal(result.escrow.status, "release_rejected");
+  assert.equal(result.action, "none");
+  assert.equal(result.executable, false);
+});
+
+test("expired approval window fails closed", () => {
+  const escrow = pendingRelease();
+  const approval = { approvalId: "a1", proposalId: escrow.pendingApproval.proposalId,
+    tenantId: escrow.tenantId, escrowId: escrow.escrowId, approverId: "human-1", decision: "approved" };
+  assert.equal(evaluateEscrowApproval(escrow, approval, {
+    now: Date.parse("2031-01-01T00:00:00Z"), verifyApproval: approvalVerifier
+  }).reason, "escrow_expired");
 });
