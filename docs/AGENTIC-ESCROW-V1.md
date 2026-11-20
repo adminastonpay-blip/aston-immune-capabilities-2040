@@ -1,0 +1,47 @@
+# Agentic Escrow v1 — Isolated Capability
+
+Status: IMPLEMENTED (initial decision core) / TESTING IN PROGRESS
+Branch: `feat/agentic-escrow-v1`
+
+## Purpose
+
+Provide a deterministic, tenant-scoped decision core for conditional agent-to-agent value transfer workflows. The module records verified lifecycle events and produces non-executable proposals for approval.
+
+## Included
+
+- Escrow creation with validated identifiers, positive integer minor-unit amount, ISO currency code, release condition and expiry.
+- Exact tenant and escrow binding for incoming events.
+- A trusted-host verifier callback; caller-supplied `verified` flags are ignored.
+- Minimal state transitions: `created → funded → release_pending_approval` or `funded → refund_pending_approval`.
+- Duplicate event idempotency within the returned escrow state.
+- Explicit `executable: false` for every decision.
+
+## Explicitly excluded
+
+- Custody, payment processing, settlement, transfers, refunds, banking integrations or ledger persistence.
+- Authentication of tenant/agent identity.
+- Cryptographic signature verification, issuer authorization, key lifecycle or trust-anchor management.
+- Durable replay protection across processes; current duplicate tracking is in-memory state supplied by the caller.
+- SafetyInterlock or ASTON OS runtime wiring.
+- Production deployment or permission to move funds.
+
+## Trust boundary
+
+The `verifyEvent` callback is privileged host code. It must be supplied by a trusted composition layer and must not originate from an agent, request body, queue payload or user-controlled data. A successful callback must bind the exact event ID, escrow ID and tenant ID and identify the verifier. This library does not prove that the callback itself is trustworthy.
+
+## Approval boundary
+
+A release or refund event only creates a proposal and moves the local decision record to a pending-approval state. A separate host integration must obtain the required human/SafetyInterlock approval and execute settlement through an independently authorized payment provider. This module cannot execute either action.
+
+## Acceptance criteria for v1
+
+1. Invalid escrow inputs are rejected.
+2. Events with mismatched tenant/escrow scope are rejected.
+3. Missing, throwing or mismatched verifier results fail closed.
+4. Release cannot be proposed before funding is verified.
+5. Release/refund proposals are non-executable and approval-required.
+6. Duplicate events do not repeat transitions.
+7. Expired escrows reject new events.
+8. Automated tests pass on the isolated branch.
+
+No integration into `agente-OS-15.5-hector-zapata`, no Cloudflare changes and no production activation are included.
