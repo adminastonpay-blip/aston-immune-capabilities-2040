@@ -1,0 +1,13 @@
+{
+  "name": "aston-immune-capabilities-2040",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent, isolated capability modules for ASTON OS 2040",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
