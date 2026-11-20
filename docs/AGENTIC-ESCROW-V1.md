@@ -30,7 +30,7 @@ Provide a deterministic, tenant-scoped decision core for conditional agent-to-ag
 
 ## Trust boundary
 
-The `verifyEvent` callback is privileged host code. It must be supplied by a trusted composition layer and must not originate from an agent, request body, queue payload or user-controlled data. A successful callback must bind the exact event ID, escrow ID and tenant ID and identify the verifier. This library does not prove that the callback itself is trustworthy.
+The `verifyEvent` callback is privileged host code. It must be supplied by a trusted composition layer and must not originate from an agent, request body, queue payload or user-controlled data. A successful callback must bind the exact event ID, event type, escrow ID, tenant ID and (when present) release-condition type/reference, and identify the verifier. Approval verification must additionally bind the approval ID, proposal ID, approver and decision. This library does not prove that the callback itself is trustworthy.
 
 ## Approval boundary
 
