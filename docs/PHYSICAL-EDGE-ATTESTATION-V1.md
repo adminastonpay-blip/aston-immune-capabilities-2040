@@ -1,6 +1,6 @@
 # Physical Edge Attestation v1 — Isolated Capability
 
-Status: IMPLEMENTED (decision-contract prototype) / TESTS PENDING
+Status: IMPLEMENTED + TESTED (25/25 isolated tests passed on the source/test commit). NOT VALIDATED for production.
 Branch: `feat/physical-edge-attestation-v1`
 
 ## Purpose
