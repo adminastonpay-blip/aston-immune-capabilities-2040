@@ -87,16 +87,16 @@ export async function executeTenantLifecycleCommand({
   if (!authorization || authorization.authorized !== true ||
       authorization.status !== "active" ||
       authorization.principalId !== adminIdentity.actor ||
-      !["platform", "tenant"].includes(authorization.scope)) {
+      !["platform", "delegated"].includes(authorization.scope)) {
     return failure("ADMIN_NOT_AUTHORIZED", trace);
   }
-  if (authorization.scope === "tenant" &&
+  if (authorization.scope === "delegated" &&
       (!validTenantId(authorization.tenantId) ||
        authorization.tenantId !== command.tenantId ||
-       adminIdentity.tenantId !== command.tenantId)) {
+       !validTenantId(adminIdentity.tenantId))) {
     return failure("ADMIN_SCOPE_MISMATCH", trace);
   }
-  if (authorization.scope === "tenant" && adminIdentity.tenantId === command.tenantId) {
+  if (authorization.scope === "delegated" && adminIdentity.tenantId === command.tenantId) {
     return failure("SELF_TENANT_ADMIN_FORBIDDEN", trace);
   }
 
