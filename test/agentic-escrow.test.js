@@ -11,7 +11,10 @@ const input = {
 };
 const verifier = (event) => ({
   verified: true, eventId: event.eventId, escrowId: event.escrowId,
-  tenantId: event.tenantId, verifierId: "host-verifier-1"
+  tenantId: event.tenantId, eventType: event.type,
+  conditionType: event.conditionType ?? null,
+  conditionReference: event.conditionReference ?? null,
+  verifierId: "host-verifier-1"
 });
 const event = (eventId, type, overrides = {}) => ({
   eventId, type, escrowId: "escrow-001", tenantId: "tenant-a", ...overrides
@@ -37,6 +40,15 @@ test("requires exact tenant and escrow scope", () => {
   const escrow = createEscrow(input).escrow;
   const result = evaluateEscrowEvent(escrow, event("e1", "funds_secured", { tenantId: "tenant-b" }), { now: 0, verifyEvent: verifier });
   assert.equal(result.reason, "scope_mismatch");
+});
+
+test("event verifier must bind the event type and release-condition payload", () => {
+  const escrow = createEscrow(input).escrow;
+  const result = evaluateEscrowEvent(escrow, event("e1", "funds_secured"), {
+    now: 0,
+    verifyEvent: (value) => ({ ...verifier(value), eventType: "release_condition_met" })
+  });
+  assert.equal(result.reason, "verification_failed");
 });
 
 test("funding must be verified before release can be proposed", () => {
