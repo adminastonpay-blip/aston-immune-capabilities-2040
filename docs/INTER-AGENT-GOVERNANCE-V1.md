@@ -1,6 +1,6 @@
 # Inter-Agent Governance v1 — Isolated Capability
 
-Status: IMPLEMENTED (initial policy decision core) / TESTING IN PROGRESS
+Status: IMPLEMENTED + TESTED (isolated policy decision core; 25/25 tests passed on the source/test commit). NOT VALIDATED for production.
 Branch: `feat/inter-agent-governance-v1`
 
 ## Purpose
