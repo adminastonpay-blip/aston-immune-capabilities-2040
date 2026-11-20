@@ -32,6 +32,22 @@ export function createAstonCapabilityRuntimeGateway({
           executable: false
         };
       }
+
+      // Re-read lifecycle after SafetyInterlock and immediately before the
+      // decision-only capability evaluation. A version change invalidates
+      // the earlier authority snapshot and requires a fresh request.
+      let currentTenant;
+      try {
+        currentTenant = await loadTenantLifecycle(authority.tenantId);
+      } catch {
+        return { ok: false, decision: "review", reason: "TENANT_LIFECYCLE_RECHECK_FAILED", executable: false };
+      }
+      if (!currentTenant || currentTenant.tenantId !== authority.tenantId ||
+          currentTenant.status !== "active" ||
+          currentTenant.lifecycleVersion !== authority.lifecycleVersion) {
+        return { ok: false, decision: "deny", reason: "TENANT_LIFECYCLE_CHANGED_DURING_GATE", executable: false };
+      }
+
       if (typeof evaluateCapability !== "function") {
         return { ok: false, decision: "deny", reason: "CAPABILITY_EVALUATOR_REQUIRED", executable: false };
       }
