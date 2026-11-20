@@ -63,6 +63,10 @@ export function evaluateEscrowEvent(escrow, event, { now = Date.now(), verifyEve
     status = "funded";
     reason = "funding_confirmed";
   } else if (event.type === "release_condition_met" && status === "funded") {
+    if (event.conditionType !== escrow.releaseCondition.type ||
+        event.conditionReference !== escrow.releaseCondition.reference) {
+      return reject("release_condition_mismatch");
+    }
     status = "release_pending_approval";
     action = "propose_release";
     reason = "release_requires_approval";
