@@ -92,9 +92,9 @@ test("rejects inactive, denied, mismatched or malformed admin authorization", as
 
 test("requires tenant-scoped administrators to match exact target scope", async () => {
   const result = await execute({
-    adminIdentity: { actor: "tenant-admin:1", tenantId: "tenant-other" },
+    adminIdentity: { actor: "tenant-admin:1", tenantId: "tenant-home" },
     authorizeAdmin: async ({ principalId }) => ({
-      authorized: true, status: "active", principalId, scope: "tenant", tenantId: "tenant-new-01"
+      authorized: true, status: "active", principalId, scope: "delegated", tenantId: "tenant-other"
     })
   });
   assert.equal(result.reason, "ADMIN_SCOPE_MISMATCH");
@@ -104,10 +104,20 @@ test("prevents tenant-scoped administrators from administering their own tenant"
   const result = await execute({
     adminIdentity: { actor: "tenant-admin:1", tenantId: "tenant-new-01" },
     authorizeAdmin: async ({ principalId }) => ({
-      authorized: true, status: "active", principalId, scope: "tenant", tenantId: "tenant-new-01"
+      authorized: true, status: "active", principalId, scope: "delegated", tenantId: "tenant-new-01"
     })
   });
   assert.equal(result.reason, "SELF_TENANT_ADMIN_FORBIDDEN");
+});
+
+test("allows a delegated administrator only for a different explicitly granted tenant", async () => {
+  const result = await execute({
+    adminIdentity: { actor: "tenant-admin:1", tenantId: "tenant-home" },
+    authorizeAdmin: async ({ principalId }) => ({
+      authorized: true, status: "active", principalId, scope: "delegated", tenantId: "tenant-new-01"
+    })
+  });
+  assert.equal(result.ok, true);
 });
 
 test("allows a separately authorized platform administrator", async () => {
